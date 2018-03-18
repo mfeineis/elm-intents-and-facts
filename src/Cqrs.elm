@@ -1,7 +1,7 @@
-module It exposing (wrap)
+module Cqrs exposing (programWithFlags)
 
 
-wrap setup =
+programWithFlags setup =
     let
         merge =
             do setup.apply setup.produce

@@ -1,74 +1,37 @@
 module Main exposing (main)
 
+import Cqrs
 import Data.Character as Character exposing (Character)
 import Html exposing (Html)
 import Html.Events as Events exposing (onClick)
 import Http
-import It
 import Json.Decode as Decode exposing (Value)
 
 
-type CounterState
-    = CounterState
-        { count : Int
-        }
-
-
-type CounterMsg
-    = Decrement
-    | Increment
-
-
-initCounter : Int -> CounterState
-initCounter count =
-    CounterState { count = count }
-
-
-applyCounter : (model -> CounterState) -> CounterMsg -> model -> CounterState
-applyCounter selector msg model =
-    let
-        (CounterState { count }) =
-            selector model
-    in
-    case msg of
-        Decrement ->
-            CounterState { count = count - 1 }
-
-        Increment ->
-            CounterState { count = count + 1 }
-
-
-viewCounter : (model -> CounterState) -> (CounterMsg -> msg) -> model -> Html msg
-viewCounter selector toMsg model =
-    let
-        (CounterState { count }) =
-            selector model
-    in
-    Html.div []
-        [ Html.button [ onClick Decrement ] [ Html.text "-" ]
-        , Html.span [] [ Html.text (toString count) ]
-        , Html.button [ onClick Increment ] [ Html.text "+" ]
-        ]
-        |> Html.map toMsg
-
-
 type alias Model =
-    { alice : CounterState
-    , bob : CounterState
+    { alice : Int
+    , bob : Int
     , clicked : Int
     }
 
 
+type CounterId
+    = Alice
+    | Bob
+
+
 type Intent
     = AskWhoIsKingInTheNorth
+    | Decrement CounterId
+    | Increment CounterId
     | Reset
     | StateFact Fact
 
 
 type Fact
-    = CounterUpdated CounterId CounterMsg
-    | KingInTheNorthReceived (Result Http.Error Character)
+    = CounterAdjusted CounterId Int
     | HasBeenReset
+    | KingInTheNorthReceived (Result Http.Error Character)
 
 
 type Consequence
@@ -78,7 +41,7 @@ type Consequence
 main : Program Value Model Intent
 main =
     Html.programWithFlags <|
-        It.wrap
+        Cqrs.programWithFlags
             { apply = apply
             , init = init
             , interpret = interpret
@@ -96,8 +59,8 @@ subscriptions model =
 
 init : Value -> ( Model, List Fact, List Consequence )
 init _ =
-    ( { alice = initCounter 0
-      , bob = initCounter 0
+    ( { alice = 0
+      , bob = 0
       , clicked = 0
       }
     , [ HasBeenReset ]
@@ -105,24 +68,25 @@ init _ =
     )
 
 
+incrementOverall : Model -> Model
+incrementOverall model =
+    { model | clicked = model.clicked + 1 }
+
+
 apply : Fact -> Model -> Model
 apply fact model =
     case fact of
-        CounterUpdated Alice subMsg ->
-            { model
-                | clicked = model.clicked + 1
-                , alice = applyCounter .alice subMsg model
-            }
+        CounterAdjusted Alice amount ->
+            { model | alice = model.alice + amount }
+                |> incrementOverall
 
-        CounterUpdated Bob subMsg ->
-            { model
-                | clicked = model.clicked + 1
-                , bob = applyCounter .bob subMsg model
-            }
+        CounterAdjusted Bob amount ->
+            { model | bob = model.bob + amount }
+                |> incrementOverall
 
         HasBeenReset ->
-            { alice = initCounter 1
-            , bob = initCounter 1
+            { alice = 1
+            , bob = 1
             , clicked = 0
             }
 
@@ -141,6 +105,12 @@ interpret msg model =
         AskWhoIsKingInTheNorth ->
             ( [], [ FetchJonSnow ] )
 
+        Decrement counter ->
+            ( [ CounterAdjusted counter -1 ], [] )
+
+        Increment counter ->
+            ( [ CounterAdjusted counter 1 ], [] )
+
         Reset ->
             ( [ HasBeenReset ], [] )
 
@@ -152,26 +122,16 @@ produce : Consequence -> Model -> Cmd Fact
 produce fx model =
     case fx of
         FetchJonSnow ->
-            let
-                request =
-                    Http.get
-                        "https://anapioficeandfire.com/api/characters/583"
-                        Character.decoder
-            in
-            Http.send KingInTheNorthReceived request
+            Character.whoIsTheKing KingInTheNorthReceived
 
 
-type CounterId
-    = Alice
-    | Bob
-
-
-renderAlice =
-    viewCounter .alice (StateFact << CounterUpdated Alice)
-
-
-renderBob =
-    viewCounter .bob (StateFact << CounterUpdated Bob)
+renderCounter : CounterId -> Int -> Html Intent
+renderCounter counter amount =
+    Html.div []
+        [ Html.button [ onClick (Decrement counter) ] [ Html.text "-" ]
+        , Html.span [] [ Html.text (toString amount) ]
+        , Html.button [ onClick (Increment counter) ] [ Html.text "+" ]
+        ]
 
 
 view : Model -> Html Intent
@@ -179,8 +139,6 @@ view model =
     Html.div []
         [ Html.text ("Times clicked: " ++ toString model.clicked)
         , Html.button [ onClick Reset ] [ Html.text "Reset" ]
-        , renderAlice model
-        , renderBob model
+        , renderCounter Alice model.alice
+        , renderCounter Bob model.bob
         ]
-
-
