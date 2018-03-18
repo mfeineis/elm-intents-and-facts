@@ -1,0 +1,22 @@
+{
+  "name": "elm-intents-and-facts",
+  "version": "0.1.0",
+  "description": "Playing around with the Intents and Facts approach in Elm",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mfeineis/elm-intents-and-facts.git"
+  },
+  "author": "Martin Feineis",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/mfeineis/elm-intents-and-facts/issues"
+  },
+  "homepage": "https://github.com/mfeineis/elm-intents-and-facts#readme",
+  "devDependencies": {
+    "elm": "^0.18.0"
+  }
+}
