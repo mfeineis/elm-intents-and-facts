@@ -6,12 +6,23 @@ import Html exposing (Html)
 import Html.Events as Events exposing (onClick)
 import Http
 import Json.Decode as Decode exposing (Value)
+import Vigors.Autocomplete exposing (Msg(..))
+
+-- [ ] Datepicker
+-- [ ] Dragndrop
+-- [ ] Material Design Snackbar
+-- [ ] Filterable Dropdown
+-- [ ] Autocomplete
+-- [ ] Paging
+-- [ ] 
 
 
 type alias Model =
     { alice : Int
     , bob : Int
     , clicked : Int
+    , docs : String
+    , search : String
     }
 
 
@@ -25,6 +36,7 @@ type Intent
     | Decrement CounterId
     | Increment CounterId
     | Reset
+    | ExternalClick
     | StateFact Fact
 
 
@@ -32,24 +44,75 @@ type Fact
     = CounterAdjusted CounterId Int
     | HasBeenReset
     | KingInTheNorthReceived (Result Http.Error Character)
+    | OverallIncremented
 
 
 type Consequence
     = FetchJonSnow
 
 
+compose program vigors =
+    let
+        init = program.init
+        subscriptions = program.subscriptions
+        update = program.update
+        view = program.view
+    in
+    { init = init
+    , subscriptions = subscriptions
+    , update = update
+    , view = view
+    }
+
+
 main : Program Value Model Intent
 main =
+    let
+        docSearch =
+            Vigors.Autocomplete.summon
+                { map =
+                    \msg ->
+                        case msg of
+                            Clicked ->
+                                ExternalClick
+
+                , read = \{ docs } -> docs
+                }
+
+        mainSearch =
+            Vigors.Autocomplete.summon
+                { map =
+                    \msg ->
+                        case msg of
+                            Clicked ->
+                                ExternalClick
+
+                , read = \{ search } -> search
+                }
+
+        compositeView model =
+            view
+                { docSearch = docSearch.view model
+                , mainSearch = mainSearch.view model
+                }
+                model
+
+        program =
+            Cqrs.programWithFlags
+                { apply = apply
+                , init = init
+                , interpret = interpret
+                , join = StateFact
+                , produce = produce
+                , subscriptions = subscriptions
+                , view = compositeView
+                }
+    in
     Html.programWithFlags <|
-        Cqrs.programWithFlags
-            { apply = apply
-            , init = init
-            , interpret = interpret
-            , join = StateFact
-            , produce = produce
-            , subscriptions = subscriptions
-            , view = view
-            }
+        compose program
+            [ docSearch
+            , mainSearch
+            ]
 
 
 subscriptions : Model -> Sub Intent
@@ -62,6 +125,8 @@ init _ =
     ( { alice = 0
       , bob = 0
       , clicked = 0
+      , docs = ""
+      , search = ""
       }
     , [ HasBeenReset ]
     , [ FetchJonSnow ]
@@ -88,6 +153,8 @@ apply fact model =
             { alice = 1
             , bob = 1
             , clicked = 0
+            , docs = "Docs"
+            , search = "Search"
             }
 
         KingInTheNorthReceived (Ok { name, titles }) ->
@@ -98,6 +165,9 @@ apply fact model =
             Debug.log ("Couldn't find the answer: " ++ toString reason)
                 model
 
+        OverallIncremented ->
+            model |> incrementOverall
+
 
 interpret : Intent -> Model -> ( List Fact, List Consequence )
 interpret msg model =
@@ -107,6 +177,9 @@ interpret msg model =
 
         Decrement counter ->
             ( [ CounterAdjusted counter -1 ], [] )
+
+        ExternalClick ->
+            ( [ OverallIncremented ], [] )
 
         Increment counter ->
             ( [ CounterAdjusted counter 1 ], [] )
@@ -134,11 +207,21 @@ renderCounter counter amount =
         ]
 
 
-view : Model -> Html Intent
-view model =
+type alias Partials =
+    { docSearch : Html Intent
+    , mainSearch : Html Intent
+    }
+
+
+view : Partials -> Model -> Html Intent
+view partials model =
     Html.div []
-        [ Html.text ("Times clicked: " ++ toString model.clicked)
+        [ Html.div []
+            [ Html.text ("Times clicked: " ++ toString model.clicked)
+            ]
+        , partials.mainSearch
         , Html.button [ onClick Reset ] [ Html.text "Reset" ]
         , renderCounter Alice model.alice
         , renderCounter Bob model.bob
+        , partials.docSearch
         ]
