@@ -35,6 +35,7 @@ type Intent
     = AskWhoIsKingInTheNorth
     | Decrement CounterId
     | ExternalClick Which
+    | AutocompleteMsg Which Msg
     | Increment CounterId
     | Noop
     | Reset
@@ -60,7 +61,23 @@ compose program vigors =
                 Sub.batch <|
                     program.subscriptions model ::
                         List.map (\vigor -> vigor.subscriptions model) vigors
-        update = program.update
+
+        merge msg vigors ( model, cmd ) =
+            case vigors of
+                vigor :: rest ->
+                    let
+                        ( newModel, newCmd ) =
+                            vigor msg model
+                    in
+                    merge msg rest ( newModel, Cmd.batch [ cmd, newCmd ])
+
+                [] ->
+                    ( model, cmd )
+
+        update =
+            \msg model ->
+                merge msg (program.update :: List.map .update vigors) ( model, Cmd.none )
+
         view = program.view
     in
     { init = init
@@ -80,30 +97,48 @@ main =
     let
         docSearch =
             Vigors.Autocomplete.summon
-                { map =
+                { ingest =
+                    \msg ->
+                        case msg of
+                            AutocompleteMsg Docs it ->
+                                Just it
+
+                            _ ->
+                                Nothing
+                , map =
                     \msg ->
                         case msg of
                             Clicked ->
                                 ExternalClick Docs
 
-                            _ ->
-                                Noop
+                            it ->
+                                AutocompleteMsg Docs it
 
                 , read = \{ docs } -> docs
+                , store = \model state -> { model | docs = state }
                 }
 
         mainSearch =
             Vigors.Autocomplete.summon
-                { map =
+                { ingest =
+                    \msg ->
+                        case msg of
+                            AutocompleteMsg Search it ->
+                                Just it
+
+                            _ ->
+                                Nothing
+                , map =
                     \msg ->
                         case msg of
                             Clicked ->
                                 ExternalClick Search
 
-                            _ ->
-                                Noop
+                            it ->
+                                AutocompleteMsg Search it
 
                 , read = \{ search } -> search
+                , store = \model state -> { model | search = state }
                 }
 
         compositeView model =
@@ -190,6 +225,9 @@ interpret msg model =
     case msg of
         AskWhoIsKingInTheNorth ->
             ( [], [ FetchJonSnow ] )
+
+        AutocompleteMsg _ _ ->
+            ( [], [] )
 
         Decrement counter ->
             ( [ CounterAdjusted counter -1 ], [] )
