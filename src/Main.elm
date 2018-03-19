@@ -34,9 +34,10 @@ type CounterId
 type Intent
     = AskWhoIsKingInTheNorth
     | Decrement CounterId
+    | ExternalClick Which
     | Increment CounterId
+    | Noop
     | Reset
-    | ExternalClick
     | StateFact Fact
 
 
@@ -54,7 +55,11 @@ type Consequence
 compose program vigors =
     let
         init = program.init
-        subscriptions = program.subscriptions
+        subscriptions =
+            \model ->
+                Sub.batch <|
+                    program.subscriptions model ::
+                        List.map (\vigor -> vigor.subscriptions model) vigors
         update = program.update
         view = program.view
     in
@@ -63,6 +68,11 @@ compose program vigors =
     , update = update
     , view = view
     }
+
+
+type Which
+    = Docs
+    | Search
 
 
 main : Program Value Model Intent
@@ -74,7 +84,10 @@ main =
                     \msg ->
                         case msg of
                             Clicked ->
-                                ExternalClick
+                                ExternalClick Docs
+
+                            _ ->
+                                Noop
 
                 , read = \{ docs } -> docs
                 }
@@ -85,7 +98,10 @@ main =
                     \msg ->
                         case msg of
                             Clicked ->
-                                ExternalClick
+                                ExternalClick Search
+
+                            _ ->
+                                Noop
 
                 , read = \{ search } -> search
                 }
@@ -178,11 +194,14 @@ interpret msg model =
         Decrement counter ->
             ( [ CounterAdjusted counter -1 ], [] )
 
-        ExternalClick ->
+        ExternalClick _ ->
             ( [ OverallIncremented ], [] )
 
         Increment counter ->
             ( [ CounterAdjusted counter 1 ], [] )
+
+        Noop ->
+            ( [], [] )
 
         Reset ->
             ( [ HasBeenReset ], [] )
