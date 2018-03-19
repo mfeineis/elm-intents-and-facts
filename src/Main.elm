@@ -56,6 +56,7 @@ type Consequence
 compose program vigors =
     let
         init = program.init
+
         subscriptions =
             \model ->
                 Sub.batch <|
@@ -97,7 +98,7 @@ main =
     let
         docSearch =
             Vigors.Autocomplete.summon
-                { ingest =
+                { incoming =
                     \msg ->
                         case msg of
                             AutocompleteMsg Docs it ->
@@ -105,7 +106,8 @@ main =
 
                             _ ->
                                 Nothing
-                , map =
+
+                , outgoing =
                     \msg ->
                         case msg of
                             Clicked ->
@@ -120,7 +122,7 @@ main =
 
         mainSearch =
             Vigors.Autocomplete.summon
-                { ingest =
+                { incoming =
                     \msg ->
                         case msg of
                             AutocompleteMsg Search it ->
@@ -128,7 +130,8 @@ main =
 
                             _ ->
                                 Nothing
-                , map =
+
+                , outgoing =
                     \msg ->
                         case msg of
                             Clicked ->
@@ -176,8 +179,8 @@ init _ =
     ( { alice = 0
       , bob = 0
       , clicked = 0
-      , docs = ""
-      , search = ""
+      , docs = Vigors.Autocomplete.init "Docs"
+      , search = Vigors.Autocomplete.init "Search"
       }
     , [ HasBeenReset ]
     , [ FetchJonSnow ]

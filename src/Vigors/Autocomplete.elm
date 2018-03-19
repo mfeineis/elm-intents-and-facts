@@ -1,4 +1,4 @@
-module Vigors.Autocomplete exposing (Msg(..), summon)
+module Vigors.Autocomplete exposing (Msg(..), init, summon)
 
 import Html exposing (Html)
 import Html.Events exposing (onClick)
@@ -19,25 +19,29 @@ type alias Vigor ctx msg =
     }
 
 type alias Ports myModel myMsg ctx msg =
-    { ingest : msg -> Maybe myMsg
-    , map : myMsg -> msg
+    { incoming : msg -> Maybe myMsg
+    , outgoing : myMsg -> msg
     , read : ctx -> myModel
     , store : ctx -> myModel -> ctx
     }
 
+init : String -> Model
+init value =
+    value
+
 summon : Ports Model Msg ctx msg -> Vigor ctx msg
 summon ports =
-    { subscriptions = \ctx -> subscriptions (ports.read ctx) |> Sub.map ports.map
+    { subscriptions = \ctx -> subscriptions (ports.read ctx) |> Sub.map ports.outgoing
     , update =
         \msg ctx ->
-            case ports.ingest msg of
+            case ports.incoming msg of
                 Nothing ->
                     ( ctx, Cmd.none )
 
                 Just myMsg ->
                     update myMsg (ports.read ctx)
-                        |> \(model, cmd) -> ( ports.store ctx model, Cmd.map ports.map cmd )
-    , view = \ctx -> view (ports.read ctx) |> Html.map ports.map
+                        |> \(model, cmd) -> ( ports.store ctx model, Cmd.map ports.outgoing cmd )
+    , view = \ctx -> view (ports.read ctx) |> Html.map ports.outgoing
     }
 
 
