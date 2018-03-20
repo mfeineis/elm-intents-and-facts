@@ -16,7 +16,7 @@ import Vigors.Counter
 -- [ ] Filterable Dropdown
 -- [ ] Autocomplete
 -- [ ] Paging
--- [ ] 
+-- [ ]
 
 
 type alias Model =
@@ -24,6 +24,7 @@ type alias Model =
     , bob : Int
     , carol : Vigors.Counter.Model
     , clicked : Int
+    , danika : Vigors.Counter.Model
     , docs : Vigors.Autocomplete.Model
     , search : Vigors.Autocomplete.Model
     }
@@ -33,6 +34,7 @@ type CounterId
     = Alice
     | Bob
     | Carol
+    | Danika
 
 
 type Intent
@@ -81,6 +83,21 @@ main =
                 , store = \model state -> { model | carol = state }
                 }
 
+        danika =
+            Vigors.Counter.vigor
+                { incoming =
+                    \msg ->
+                        case msg of
+                            CounterMsg Danika it ->
+                                Just it
+
+                            _ ->
+                                Nothing
+                , outgoing = CounterMsg Danika
+                , read = .danika
+                , store = \model state -> { model | danika = state }
+                }
+
         docSearch =
             Vigors.Autocomplete.vigor
                 { incoming =
@@ -122,6 +139,7 @@ main =
         compositeView model =
             view
                 { carol = carol.view model
+                , danika = danika.view model
                 , docSearch = docSearch.view model
                 , mainSearch = mainSearch.view model
                 }
@@ -141,6 +159,7 @@ main =
     Html.programWithFlags <|
         Vigors.compose program
             [ carol
+            , danika
             , docSearch
             , mainSearch
             ]
@@ -156,6 +175,7 @@ init _ =
     ( { alice = 0
       , bob = 0
       , carol = Vigors.Counter.init "Carol" 0
+      , danika = Vigors.Counter.init "Danika" 0
       , clicked = 0
       , docs = Vigors.Autocomplete.init "Docs"
       , search = Vigors.Autocomplete.init "Search"
@@ -181,7 +201,7 @@ apply fact model =
             { model | bob = model.bob + amount }
                 |> incrementOverall
 
-        CounterAdjusted Carol _ ->
+        CounterAdjusted _ _ ->
             model
                 |> incrementOverall
 
@@ -190,6 +210,7 @@ apply fact model =
             , bob = 1
             , carol = Vigors.Counter.init "Carol" 1
             , clicked = 0
+            , danika = Vigors.Counter.init "Danika" 1
             , docs = Vigors.Autocomplete.init "Docs"
             , search = Vigors.Autocomplete.init "Search"
             }
@@ -255,6 +276,7 @@ renderCounter counter amount =
 
 type alias Partials =
     { carol : Html Intent
+    , danika : Html Intent
     , docSearch : Html Intent
     , mainSearch : Html Intent
     }
@@ -271,5 +293,6 @@ view partials model =
         , renderCounter Alice model.alice
         , renderCounter Bob model.bob
         , partials.carol
+        , partials.danika
         , partials.docSearch
         ]
