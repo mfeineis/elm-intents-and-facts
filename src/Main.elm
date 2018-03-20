@@ -22,8 +22,8 @@ type alias Model =
     { alice : Int
     , bob : Int
     , clicked : Int
-    , docs : String
-    , search : String
+    , docs : Vigors.Autocomplete.Model
+    , search : Vigors.Autocomplete.Model
     }
 
 
@@ -74,7 +74,6 @@ main =
                                 Nothing
 
                 , outgoing = AutocompleteMsg Docs
-
                 , read = \{ docs } -> docs
                 , store = \model state -> { model | docs = state }
                 }
@@ -89,7 +88,6 @@ main =
 
                             _ ->
                                 Nothing
-
                 , outgoing =
                     \msg ->
                         case msg of
@@ -98,7 +96,6 @@ main =
 
                             it ->
                                 AutocompleteMsg Search it
-
                 , read = \{ search } -> search
                 , store = \model state -> { model | search = state }
                 }
@@ -166,8 +163,8 @@ apply fact model =
             { alice = 1
             , bob = 1
             , clicked = 0
-            , docs = "Docs"
-            , search = "Search"
+            , docs = Vigors.Autocomplete.init "Docs"
+            , search = Vigors.Autocomplete.init "Search"
             }
 
         KingInTheNorthReceived (Ok { name, titles }) ->

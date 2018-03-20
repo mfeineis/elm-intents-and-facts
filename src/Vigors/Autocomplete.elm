@@ -1,4 +1,4 @@
-module Vigors.Autocomplete exposing (Msg(..), init, vigor)
+module Vigors.Autocomplete exposing (Model, Msg(..), init, vigor)
 
 import Html exposing (Html)
 import Html.Events exposing (onClick)
@@ -11,7 +11,7 @@ type Msg
     | SizeChanged { height : Int, width : Int }
 
 
-type alias Model = String
+type Model = Model String
 
 
 vigor : Recipe Model Msg ctx msg -> Vigor ctx msg
@@ -25,7 +25,7 @@ vigor =
 
 init : String -> Model
 init value =
-    value
+    Model value
 
 
 subscriptions : Model -> Sub Msg
@@ -48,7 +48,7 @@ update msg model =
 
 
 view : Model -> Html Msg
-view model =
+view (Model model) =
     Html.button [ onClick Clicked ]
         [ Html.text model
         ]
