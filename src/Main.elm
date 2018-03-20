@@ -8,6 +8,7 @@ import Http
 import Json.Decode as Decode exposing (Value)
 import Vigors
 import Vigors.Autocomplete exposing (Msg(..))
+import Vigors.Counter
 
 -- [ ] Datepicker
 -- [ ] Dragndrop
@@ -21,6 +22,7 @@ import Vigors.Autocomplete exposing (Msg(..))
 type alias Model =
     { alice : Int
     , bob : Int
+    , carol : Vigors.Counter.Model
     , clicked : Int
     , docs : Vigors.Autocomplete.Model
     , search : Vigors.Autocomplete.Model
@@ -30,13 +32,15 @@ type alias Model =
 type CounterId
     = Alice
     | Bob
+    | Carol
 
 
 type Intent
     = AskWhoIsKingInTheNorth
+    | AutocompleteMsg Which Msg
+    | CounterMsg CounterId Vigors.Counter.Msg
     | Decrement CounterId
     | ExternalClick Which
-    | AutocompleteMsg Which Msg
     | Increment CounterId
     | Noop
     | Reset
@@ -62,6 +66,21 @@ type Which
 main : Program Value Model Intent
 main =
     let
+        carol =
+            Vigors.Counter.vigor
+                { incoming =
+                    \msg ->
+                        case msg of
+                            CounterMsg Carol it ->
+                                Just it
+
+                            _ ->
+                                Nothing
+                , outgoing = CounterMsg Carol
+                , read = .carol
+                , store = \model state -> { model | carol = state }
+                }
+
         docSearch =
             Vigors.Autocomplete.vigor
                 { incoming =
@@ -74,7 +93,7 @@ main =
                                 Nothing
 
                 , outgoing = AutocompleteMsg Docs
-                , read = \{ docs } -> docs
+                , read = .docs
                 , store = \model state -> { model | docs = state }
                 }
 
@@ -96,13 +115,14 @@ main =
 
                             it ->
                                 AutocompleteMsg Search it
-                , read = \{ search } -> search
+                , read = .search
                 , store = \model state -> { model | search = state }
                 }
 
         compositeView model =
             view
-                { docSearch = docSearch.view model
+                { carol = carol.view model
+                , docSearch = docSearch.view model
                 , mainSearch = mainSearch.view model
                 }
                 model
@@ -120,7 +140,8 @@ main =
     in
     Html.programWithFlags <|
         Vigors.compose program
-            [ docSearch
+            [ carol
+            , docSearch
             , mainSearch
             ]
 
@@ -134,6 +155,7 @@ init : Value -> ( Model, List Fact, List Consequence )
 init _ =
     ( { alice = 0
       , bob = 0
+      , carol = Vigors.Counter.init "Carol" 0
       , clicked = 0
       , docs = Vigors.Autocomplete.init "Docs"
       , search = Vigors.Autocomplete.init "Search"
@@ -159,9 +181,14 @@ apply fact model =
             { model | bob = model.bob + amount }
                 |> incrementOverall
 
+        CounterAdjusted Carol _ ->
+            model
+                |> incrementOverall
+
         HasBeenReset ->
             { alice = 1
             , bob = 1
+            , carol = Vigors.Counter.init "Carol" 1
             , clicked = 0
             , docs = Vigors.Autocomplete.init "Docs"
             , search = Vigors.Autocomplete.init "Search"
@@ -186,6 +213,9 @@ interpret msg model =
             ( [], [ FetchJonSnow ] )
 
         AutocompleteMsg _ _ ->
+            ( [], [] )
+
+        CounterMsg _ _ ->
             ( [], [] )
 
         Decrement counter ->
@@ -224,7 +254,8 @@ renderCounter counter amount =
 
 
 type alias Partials =
-    { docSearch : Html Intent
+    { carol : Html Intent
+    , docSearch : Html Intent
     , mainSearch : Html Intent
     }
 
@@ -239,5 +270,6 @@ view partials model =
         , Html.button [ onClick Reset ] [ Html.text "Reset" ]
         , renderCounter Alice model.alice
         , renderCounter Bob model.bob
+        , partials.carol
         , partials.docSearch
         ]
