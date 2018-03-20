@@ -63,7 +63,7 @@ main : Program Value Model Intent
 main =
     let
         docSearch =
-            Vigors.Autocomplete.summon
+            Vigors.Autocomplete.vigor
                 { incoming =
                     \msg ->
                         case msg of
@@ -73,21 +73,14 @@ main =
                             _ ->
                                 Nothing
 
-                , outgoing =
-                    \msg ->
-                        case msg of
-                            Clicked ->
-                                ExternalClick Docs
-
-                            it ->
-                                AutocompleteMsg Docs it
+                , outgoing = AutocompleteMsg Docs
 
                 , read = \{ docs } -> docs
                 , store = \model state -> { model | docs = state }
                 }
 
         mainSearch =
-            Vigors.Autocomplete.summon
+            Vigors.Autocomplete.vigor
                 { incoming =
                     \msg ->
                         case msg of
