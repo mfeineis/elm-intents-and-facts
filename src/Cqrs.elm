@@ -6,17 +6,14 @@ programWithFlags setup =
         merge =
             do setup.apply setup.produce
 
-        coalesce ( model, cmd ) =
-            ( model, Cmd.map setup.join cmd )
-
         doInit ( model, facts, fxs ) =
-            merge model ( facts, fxs ) |> coalesce
+            merge model ( facts, fxs )
 
         init flags =
             setup.init flags |> doInit
 
         update intent model =
-            setup.interpret intent model |> merge model |> coalesce
+            setup.interpret intent model |> merge model
     in
     { init = init
     , subscriptions = setup.subscriptions
@@ -25,20 +22,20 @@ programWithFlags setup =
     }
 
 
-type alias ProduceEffect fx fact model =
-    fx -> model -> Cmd fact
+type alias ProduceEffect fx model intent =
+    fx -> model -> Cmd intent
 
 
 type alias ApplyFact fact model =
     fact -> model -> model
 
 
-do : ApplyFact fact model -> ProduceEffect fx fact model -> model -> ( List fact, List fx ) -> ( model, Cmd fact )
+do : ApplyFact fact model -> ProduceEffect fx model intent -> model -> ( List fact, List fx ) -> ( model, Cmd intent )
 do apply produce model ( facts, fxs ) =
     mergeFxs produce (List.foldl apply model facts) Cmd.none fxs
 
 
-mergeFxs : ProduceEffect fx fact model -> model -> Cmd fact -> List fx -> ( model, Cmd fact )
+mergeFxs : ProduceEffect fx model intent -> model -> Cmd intent -> List fx -> ( model, Cmd intent )
 mergeFxs produce model cmd fxs =
     case fxs of
         fx :: rest ->

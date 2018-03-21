@@ -119,7 +119,6 @@ main =
                 { apply = apply
                 , init = init
                 , interpret = interpret
-                , join = StateFact
                 , produce = produce
                 , subscriptions = subscriptions
                 , view = compositeView
@@ -225,11 +224,11 @@ interpret msg model =
             ( [ fact ], [] )
 
 
-produce : Consequence -> Model -> Cmd Fact
+produce : Consequence -> Model -> Cmd Intent
 produce fx model =
     case fx of
         FetchJonSnow ->
-            Character.whoIsTheKing KingInTheNorthReceived
+            Character.whoIsTheKing (StateFact << KingInTheNorthReceived)
 
 
 renderCounter : CounterId -> Int -> Html Intent
