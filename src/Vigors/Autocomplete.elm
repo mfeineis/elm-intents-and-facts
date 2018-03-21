@@ -19,6 +19,7 @@ type alias State =
     , text : String
     }
 
+
 vigor : Recipe Model Msg ctx msg -> Vigor ctx msg
 vigor =
     Vigors.summon
@@ -46,9 +47,9 @@ subscriptions model =
     Sub.none
 
 
-withoutCmd : State -> ( Model, Cmd Msg )
-withoutCmd state =
-    ( Model state, Cmd.none )
+withCmds : List (Cmd Msg) -> State -> ( Model, Cmd Msg )
+withCmds cmds state =
+    ( Model state, Cmd.batch cmds )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -56,7 +57,7 @@ update msg (Model state) =
     case Debug.log "Autocomplete.update" msg of
         ChangeText text ->
             { state | text = text }
-                |> withoutCmd
+                |> withCmds []
 
 
 view : Model -> Html Msg

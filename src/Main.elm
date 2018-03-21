@@ -205,8 +205,8 @@ apply fact model =
 
 
 interpret : Intent -> Model -> ( List Fact, List Consequence )
-interpret msg model =
-    case msg of
+interpret intent model =
+    case intent of
         AskWhoIsKingInTheNorth ->
             ( [], [ FetchJonSnow ] )
 
