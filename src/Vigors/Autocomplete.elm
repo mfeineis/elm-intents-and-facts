@@ -1,18 +1,23 @@
-module Vigors.Autocomplete exposing (Model, Msg(..), init, vigor)
+module Vigors.Autocomplete exposing (Model, Msg, init, vigor)
 
 import Html exposing (Html)
-import Html.Events exposing (onClick)
+import Html.Attributes as Attr
+import Html.Events exposing (onClick, onInput)
 import Vigors exposing (Recipe, Vigor)
-import Window
+
+
+type Model =
+    Model State
 
 
 type Msg
-    = Clicked
-    | SizeChanged { height : Int, width : Int }
+    = ChangeText String
 
 
-type Model = Model String
-
+type alias State =
+    { placeholder : String
+    , text : String
+    }
 
 vigor : Recipe Model Msg ctx msg -> Vigor ctx msg
 vigor =
@@ -23,32 +28,43 @@ vigor =
         }
 
 
-init : String -> Model
-init value =
-    Model value
+type alias Config =
+    { placeholder : String
+    }
+
+
+init : Config -> Model
+init { placeholder }=
+    Model
+        { placeholder = placeholder
+        , text = ""
+        }
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ Window.resizes SizeChanged
-        ]
+    Sub.none
+
+
+withoutCmd : State -> ( Model, Cmd Msg )
+withoutCmd state =
+    ( Model state, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case msg of
-        Clicked ->
-            Debug.log ("Autocomplete.clicked")
-                ( model, Cmd.none )
-
-        SizeChanged size ->
-            Debug.log ("Autocomplete.sizeChanged")
-                ( model, Cmd.none )
+update msg (Model state) =
+    case Debug.log "Autocomplete.update" msg of
+        ChangeText text ->
+            { state | text = text }
+                |> withoutCmd
 
 
 view : Model -> Html Msg
-view (Model model) =
-    Html.button [ onClick Clicked ]
-        [ Html.text model
+view (Model state) =
+    Html.div []
+        [ Html.input
+            [ onInput ChangeText
+            , Attr.placeholder state.placeholder
+            ]
+            []
         ]

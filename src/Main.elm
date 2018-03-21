@@ -7,7 +7,7 @@ import Html.Events as Events exposing (onClick)
 import Http
 import Json.Decode as Decode exposing (Value)
 import Vigors
-import Vigors.Autocomplete exposing (Msg(..))
+import Vigors.Autocomplete
 import Vigors.Counter
 
 -- [ ] Datepicker
@@ -25,7 +25,6 @@ type alias Model =
     , carol : Vigors.Counter.Model
     , clicked : Int
     , danika : Vigors.Counter.Model
-    , docs : Vigors.Autocomplete.Model
     , search : Vigors.Autocomplete.Model
     }
 
@@ -39,10 +38,9 @@ type CounterId
 
 type Intent
     = AskWhoIsKingInTheNorth
-    | AutocompleteMsg Which Msg
+    | AutocompleteMsg Vigors.Autocomplete.Msg
     | CounterMsg CounterId Vigors.Counter.Msg
     | Decrement CounterId
-    | ExternalClick Which
     | Increment CounterId
     | Noop
     | Reset
@@ -58,11 +56,6 @@ type Fact
 
 type Consequence
     = FetchJonSnow
-
-
-type Which
-    = Docs
-    | Search
 
 
 main : Program Value Model Intent
@@ -98,40 +91,17 @@ main =
                 , store = \model state -> { model | danika = state }
                 }
 
-        docSearch =
-            Vigors.Autocomplete.vigor
-                { incoming =
-                    \msg ->
-                        case msg of
-                            AutocompleteMsg Docs it ->
-                                Just it
-
-                            _ ->
-                                Nothing
-
-                , outgoing = AutocompleteMsg Docs
-                , read = .docs
-                , store = \model state -> { model | docs = state }
-                }
-
         mainSearch =
             Vigors.Autocomplete.vigor
                 { incoming =
                     \msg ->
                         case msg of
-                            AutocompleteMsg Search it ->
+                            AutocompleteMsg it ->
                                 Just it
 
                             _ ->
                                 Nothing
-                , outgoing =
-                    \msg ->
-                        case msg of
-                            Clicked ->
-                                ExternalClick Search
-
-                            it ->
-                                AutocompleteMsg Search it
+                , outgoing = AutocompleteMsg
                 , read = .search
                 , store = \model state -> { model | search = state }
                 }
@@ -140,7 +110,6 @@ main =
             view
                 { carol = carol.view model
                 , danika = danika.view model
-                , docSearch = docSearch.view model
                 , mainSearch = mainSearch.view model
                 }
                 model
@@ -160,7 +129,6 @@ main =
         Vigors.compose program
             [ carol
             , danika
-            , docSearch
             , mainSearch
             ]
 
@@ -177,8 +145,9 @@ init _ =
       , carol = Vigors.Counter.init "Carol" 0
       , danika = Vigors.Counter.init "Danika" 0
       , clicked = 0
-      , docs = Vigors.Autocomplete.init "Docs"
-      , search = Vigors.Autocomplete.init "Search"
+      , search = Vigors.Autocomplete.init
+          { placeholder = "Search for something..."
+          }
       }
     , [ HasBeenReset ]
     , [ FetchJonSnow ]
@@ -211,8 +180,9 @@ apply fact model =
             , carol = Vigors.Counter.init "Carol" 1
             , clicked = 0
             , danika = Vigors.Counter.init "Danika" 1
-            , docs = Vigors.Autocomplete.init "Docs"
-            , search = Vigors.Autocomplete.init "Search"
+            , search = Vigors.Autocomplete.init
+                { placeholder = "Search for something..."
+                }
             }
 
         KingInTheNorthReceived (Ok { name, titles }) ->
@@ -233,7 +203,7 @@ interpret msg model =
         AskWhoIsKingInTheNorth ->
             ( [], [ FetchJonSnow ] )
 
-        AutocompleteMsg _ _ ->
+        AutocompleteMsg _ ->
             ( [], [] )
 
         CounterMsg _ _ ->
@@ -241,9 +211,6 @@ interpret msg model =
 
         Decrement counter ->
             ( [ CounterAdjusted counter -1 ], [] )
-
-        ExternalClick _ ->
-            ( [ OverallIncremented ], [] )
 
         Increment counter ->
             ( [ CounterAdjusted counter 1 ], [] )
@@ -277,7 +244,6 @@ renderCounter counter amount =
 type alias Partials =
     { carol : Html Intent
     , danika : Html Intent
-    , docSearch : Html Intent
     , mainSearch : Html Intent
     }
 
@@ -294,5 +260,4 @@ view partials model =
         , renderCounter Bob model.bob
         , partials.carol
         , partials.danika
-        , partials.docSearch
         ]
