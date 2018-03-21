@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (init, main, vigor)
 
 import Cqrs
 import Data.Character as Character exposing (Character)
@@ -58,72 +58,80 @@ type Consequence
     = FetchJonSnow
 
 
+carol =
+    Vigors.Counter.vigor
+        { incoming =
+            \msg ->
+                case msg of
+                    CounterMsg Carol it ->
+                        Just it
+
+                    _ ->
+                        Nothing
+        , outgoing = CounterMsg Carol
+        , read = .carol
+        , store = \model state -> { model | carol = state }
+        }
+
+danika =
+    Vigors.Counter.vigor
+        { incoming =
+            \msg ->
+                case msg of
+                    CounterMsg Danika it ->
+                        Just it
+
+                    _ ->
+                        Nothing
+        , outgoing = CounterMsg Danika
+        , read = .danika
+        , store = \model state -> { model | danika = state }
+        }
+
+mainSearch =
+    Vigors.Autocomplete.vigor
+        { incoming =
+            \msg ->
+                case msg of
+                    AutocompleteMsg it ->
+                        Just it
+
+                    _ ->
+                        Nothing
+        , outgoing = AutocompleteMsg
+        , read = .search
+        , store = \model state -> { model | search = state }
+        }
+
+compositeView model =
+    view
+        { carol = carol.view model
+        , danika = danika.view model
+        , mainSearch = mainSearch.view model
+        }
+        model
+
+program =
+    Cqrs.programWithFlags
+        { apply = apply
+        , init = init
+        , interpret = interpret
+        , produce = produce
+        , subscriptions = subscriptions
+        , view = compositeView
+        }
+
+
+vigor =
+    Vigors.summon
+        { subscriptions = program.subscriptions
+        , update = program.update
+        , view = program.view
+        }
+
+
 main : Program Value Model Intent
 main =
-    let
-        carol =
-            Vigors.Counter.vigor
-                { incoming =
-                    \msg ->
-                        case msg of
-                            CounterMsg Carol it ->
-                                Just it
-
-                            _ ->
-                                Nothing
-                , outgoing = CounterMsg Carol
-                , read = .carol
-                , store = \model state -> { model | carol = state }
-                }
-
-        danika =
-            Vigors.Counter.vigor
-                { incoming =
-                    \msg ->
-                        case msg of
-                            CounterMsg Danika it ->
-                                Just it
-
-                            _ ->
-                                Nothing
-                , outgoing = CounterMsg Danika
-                , read = .danika
-                , store = \model state -> { model | danika = state }
-                }
-
-        mainSearch =
-            Vigors.Autocomplete.vigor
-                { incoming =
-                    \msg ->
-                        case msg of
-                            AutocompleteMsg it ->
-                                Just it
-
-                            _ ->
-                                Nothing
-                , outgoing = AutocompleteMsg
-                , read = .search
-                , store = \model state -> { model | search = state }
-                }
-
-        compositeView model =
-            view
-                { carol = carol.view model
-                , danika = danika.view model
-                , mainSearch = mainSearch.view model
-                }
-                model
-
-        program =
-            Cqrs.programWithFlags
-                { apply = apply
-                , init = init
-                , interpret = interpret
-                , produce = produce
-                , subscriptions = subscriptions
-                , view = compositeView
-                }
-    in
     Html.programWithFlags <|
         Vigors.compose program
             [ carol
