@@ -6,8 +6,8 @@ import Html.Events exposing (onClick, onInput)
 import Vigors exposing (Recipe, Vigor)
 
 
-type Model =
-    Model State
+type Model
+    = Model State
 
 
 type Msg
@@ -35,7 +35,7 @@ type alias Config =
 
 
 init : Config -> Model
-init { placeholder }=
+init { placeholder } =
     Model
         { placeholder = placeholder
         , text = ""
