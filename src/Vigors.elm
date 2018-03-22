@@ -44,7 +44,7 @@ summon { subscriptions, update, view } recipe =
 
                 Just myMsg ->
                     update myMsg (recipe.read ctx)
-                        |> \(model, cmd) -> ( recipe.store ctx model, Cmd.map recipe.outgoing cmd )
+                        |> (\( model, cmd ) -> ( recipe.store ctx model, Cmd.map recipe.outgoing cmd ))
     , view = \ctx -> view (recipe.read ctx) |> Html.map recipe.outgoing
     }
 
@@ -52,13 +52,14 @@ summon { subscriptions, update, view } recipe =
 compose : Host flags model msg -> List (Vigor model msg) -> Host flags model msg
 compose program vigors =
     let
-        init = program.init
+        init =
+            program.init
 
         subscriptions =
             \model ->
                 Sub.batch <|
-                    program.subscriptions model ::
-                        List.map (\vigor -> vigor.subscriptions model) vigors
+                    program.subscriptions model
+                        :: List.map (\vigor -> vigor.subscriptions model) vigors
 
         merge msg vigors ( model, cmd ) =
             case vigors of
@@ -67,7 +68,7 @@ compose program vigors =
                         ( newModel, newCmd ) =
                             vigor msg model
                     in
-                    merge msg rest ( newModel, Cmd.batch [ cmd, newCmd ])
+                    merge msg rest ( newModel, Cmd.batch [ cmd, newCmd ] )
 
                 [] ->
                     ( model, cmd )
@@ -76,11 +77,11 @@ compose program vigors =
             \msg model ->
                 merge msg (program.update :: List.map .update vigors) ( model, Cmd.none )
 
-        view = program.view
+        view =
+            program.view
     in
     { init = init
     , subscriptions = subscriptions
     , update = update
     , view = view
     }
-

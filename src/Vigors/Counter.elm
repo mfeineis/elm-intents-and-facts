@@ -10,7 +10,8 @@ type Msg
     | Increment
 
 
-type Model = Model String Int
+type Model
+    = Model String Int
 
 
 vigor : Recipe Model Msg ctx msg -> Vigor ctx msg

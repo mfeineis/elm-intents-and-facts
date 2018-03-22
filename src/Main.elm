@@ -10,6 +10,7 @@ import Vigors
 import Vigors.Autocomplete
 import Vigors.Counter
 
+
 -- [ ] Datepicker
 -- [ ] Dragndrop
 -- [ ] Material Design Snackbar
@@ -73,6 +74,7 @@ carol =
         , store = \model state -> { model | carol = state }
         }
 
+
 danika =
     Vigors.Counter.vigor
         { incoming =
@@ -87,6 +89,7 @@ danika =
         , read = .danika
         , store = \model state -> { model | danika = state }
         }
+
 
 mainSearch =
     Vigors.Autocomplete.vigor
@@ -103,6 +106,7 @@ mainSearch =
         , store = \model state -> { model | search = state }
         }
 
+
 compositeView model =
     view
         { carol = carol.view model
@@ -110,6 +114,7 @@ compositeView model =
         , mainSearch = mainSearch.view model
         }
         model
+
 
 program =
     Cqrs.programWithFlags
@@ -152,9 +157,10 @@ init _ =
       , carol = Vigors.Counter.init "Carol" 0
       , danika = Vigors.Counter.init "Danika" 0
       , clicked = 0
-      , search = Vigors.Autocomplete.init
-          { placeholder = "Search for something..."
-          }
+      , search =
+            Vigors.Autocomplete.init
+                { placeholder = "Search for something..."
+                }
       }
     , [ HasBeenReset ]
     , [ FetchJonSnow ]
@@ -187,9 +193,10 @@ apply fact model =
             , carol = Vigors.Counter.init "Carol" 1
             , clicked = 0
             , danika = Vigors.Counter.init "Danika" 1
-            , search = Vigors.Autocomplete.init
-                { placeholder = "Search for something..."
-                }
+            , search =
+                Vigors.Autocomplete.init
+                    { placeholder = "Search for something..."
+                    }
             }
 
         KingInTheNorthReceived (Ok { name, titles }) ->
