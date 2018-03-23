@@ -1,13 +1,11 @@
-module Main exposing (init, main, vigor)
+module MainDcft exposing (Msg, Model, init, main, vigor)
 
-import Cqrs
 import Data.Character as Character exposing (Character)
+import Dcft
 import Html exposing (Html)
 import Html.Events as Events exposing (onClick)
 import Http
 import Json.Decode as Decode exposing (Value)
-import Json.Encode as Encode
-import MainDcft
 import Task
 import Vigors
 import Vigors.Autocomplete exposing (Msg(..))
@@ -27,11 +25,18 @@ type alias Model =
     { alice : Int
     , bob : Int
     , carol : Vigors.Counter.Model
-    , dcft : MainDcft.Model
     , clicked : Int
     , danika : Vigors.Counter.Model
+    , kingRequest : KingRequest
     , search : Vigors.Autocomplete.Model
+    , suggestionSupply : SuggestionSupply
     }
+
+
+type KingRequest = NotAskingForKing | AskingForKing | KingRequested Character
+
+
+type SuggestionSupply = NotAskingForSuggestions | AskingForSuggestions | StaticSuggestions (List String)
 
 
 type CounterId
@@ -41,27 +46,14 @@ type CounterId
     | Danika
 
 
-type Intent
+type Msg
     = AskWhoIsKingInTheNorth
     | AutocompleteMsg Vigors.Autocomplete.Msg
     | CounterMsg CounterId Vigors.Counter.Msg
     | Decrement CounterId
     | Increment CounterId
-    | MainDcftMsg MainDcft.Msg
-    | Reset
-    | StateFact Fact
-
-
-type Fact
-    = CounterAdjusted CounterId Int
-    | HasBeenReset
     | KingInTheNorthReceived (Result Http.Error Character)
-    | OverallIncremented
-
-
-type Consequence
-    = FetchJonSnow
-    | SupplyStaticSuggestions
+    | Reset
 
 
 carol =
@@ -95,21 +87,6 @@ danika =
         , store = \model state -> { model | danika = state }
         }
 
-dcft =
-    MainDcft.vigor
-        { incoming =
-            \msg ->
-                case msg of
-                    MainDcftMsg it ->
-                        Just it
-
-                    _ ->
-                        Nothing
-        , outgoing = MainDcftMsg
-        , read = .dcft
-        , store = \model state -> { model | dcft = state }
-        }
-
 
 mainSearch =
     Vigors.Autocomplete.vigor
@@ -131,16 +108,14 @@ compositeView model =
     view
         { carol = carol.view model
         , danika = danika.view model
-        , dcft = dcft.view model
         , mainSearch = mainSearch.view model
         }
         model
 
 
 program =
-    Cqrs.programWithFlags
-        { apply = apply
-        , init = init
+    Dcft.programWithFlags
+        { init = init
         , interpret = interpret
         , produce = produce
         , subscriptions = subscriptions
@@ -156,38 +131,35 @@ vigor =
         }
 
 
-main : Program Value Model Intent
+main : Program Value Model Msg
 main =
     Html.programWithFlags <|
         Vigors.compose program
             [ carol
             , danika
-            , dcft
             , mainSearch
             ]
 
 
-subscriptions : Model -> Sub Intent
+subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.none
 
 
-init : Value -> ( Model, List Fact, List Consequence )
+init : Value -> Model
 init _ =
-    ( { alice = 0
-      , bob = 0
-      , carol = Vigors.Counter.init "Carol" 0
-      , clicked = 0
-      , danika = Vigors.Counter.init "Danika" 0
-      , dcft = MainDcft.init (Encode.object [])
-      , search =
-            Vigors.Autocomplete.init
-                { placeholder = "Search for something..."
-                }
-      }
-    , [ HasBeenReset ]
-    , [ FetchJonSnow ]
-    )
+    { alice = 0
+    , bob = 0
+    , carol = Vigors.Counter.init "Carol" 0
+    , danika = Vigors.Counter.init "Danika" 0
+    , clicked = 0
+    , kingRequest = NotAskingForKing
+    , search =
+        Vigors.Autocomplete.init
+            { placeholder = "Search for something..."
+            }
+    , suggestionSupply = NotAskingForSuggestions
+    }
 
 
 incrementOverall : Model -> Model
@@ -195,89 +167,94 @@ incrementOverall model =
     { model | clicked = model.clicked + 1 }
 
 
-apply : Fact -> Model -> Model
-apply fact model =
-    case fact of
-        CounterAdjusted Alice amount ->
-            { model | alice = model.alice + amount }
+interpret : Msg -> Model -> Model
+interpret intent model =
+    case intent of
+        AskWhoIsKingInTheNorth ->
+            { model | kingRequest = AskingForKing
+            }
+
+        AutocompleteMsg (FetchSuggestions text) ->
+            { model | suggestionSupply = AskingForSuggestions
+            }
+
+        AutocompleteMsg (SuggestionsFetched suggestions) ->
+            { model | suggestionSupply = StaticSuggestions suggestions
+            }
+
+        AutocompleteMsg _ ->
+            model
+
+        CounterMsg _ _ ->
+            model
+
+        Decrement Alice ->
+            { model | alice = model.alice - 1 }
                 |> incrementOverall
 
-        CounterAdjusted Bob amount ->
-            { model | bob = model.bob + amount }
+        Decrement Bob ->
+            { model | bob = model.bob - 1 }
                 |> incrementOverall
 
-        CounterAdjusted _ _ ->
+        Decrement _ ->
+            model
+
+        Increment Alice ->
+            { model | alice = model.alice + 1 }
+                |> incrementOverall
+
+        Increment Bob ->
+            { model | bob = model.bob + 1 }
+                |> incrementOverall
+
+        Increment _ ->
             model
                 |> incrementOverall
 
-        HasBeenReset ->
+        KingInTheNorthReceived (Ok king) ->
+            Debug.log (king.name ++ "/" ++ String.join "," king.titles)
+                { model | kingRequest = KingRequested king }
+
+        KingInTheNorthReceived (Err reason) ->
+            Debug.log ("Couldn't find the answer: " ++ toString reason)
+                { model | kingRequest = NotAskingForKing }
+
+        Reset ->
             { alice = 1
             , bob = 1
             , carol = Vigors.Counter.init "Carol" 1
             , clicked = 0
             , danika = Vigors.Counter.init "Danika" 1
-            , dcft = MainDcft.init (Encode.object [])
+            , kingRequest = NotAskingForKing
             , search =
                 Vigors.Autocomplete.init
                     { placeholder = "Search for something..."
                     }
+            , suggestionSupply = NotAskingForSuggestions
             }
 
-        KingInTheNorthReceived (Ok { name, titles }) ->
-            Debug.log (name ++ "/" ++ String.join "," titles)
-                model
 
-        KingInTheNorthReceived (Err reason) ->
-            Debug.log ("Couldn't find the answer: " ++ toString reason)
-                model
+produce : Model -> Cmd Msg
+produce model =
+    Cmd.batch
+        [ case model.kingRequest of
+            AskingForKing ->
+                Character.whoIsTheKing KingInTheNorthReceived
 
-        OverallIncremented ->
-            model |> incrementOverall
+            _ ->
+                Cmd.none
 
+        , case model.suggestionSupply of
+            AskingForSuggestions ->
+                AutocompleteMsg (SuggestionsFetched [ "Aang", "Katara", "Sooka" ])
+                    |> asCmd
 
-interpret : Intent -> Model -> ( List Fact, List Consequence )
-interpret intent model =
-    case intent of
-        AskWhoIsKingInTheNorth ->
-            ( [], [ FetchJonSnow ] )
-
-        AutocompleteMsg (FetchSuggestions text) ->
-            ( [], [ SupplyStaticSuggestions ] )
-
-        AutocompleteMsg _ ->
-            ( [], [] )
-
-        CounterMsg _ _ ->
-            ( [], [] )
-
-        Decrement counter ->
-            ( [ CounterAdjusted counter -1 ], [] )
-
-        Increment counter ->
-            ( [ CounterAdjusted counter 1 ], [] )
-
-        MainDcftMsg _ ->
-            ( [], [] )
-
-        Reset ->
-            ( [ HasBeenReset ], [] )
-
-        StateFact fact ->
-            ( [ fact ], [] )
+            _ ->
+                Cmd.none
+        ]
 
 
-produce : Consequence -> Model -> Cmd Intent
-produce fx model =
-    case fx of
-        FetchJonSnow ->
-            Character.whoIsTheKing (StateFact << KingInTheNorthReceived)
-
-        SupplyStaticSuggestions ->
-            AutocompleteMsg (SuggestionsFetched [ "Aang", "Katara", "Sooka" ])
-                |> asCmd
-
-
-renderCounter : CounterId -> Int -> Html Intent
+renderCounter : CounterId -> Int -> Html Msg
 renderCounter counter amount =
     Html.div []
         [ Html.button [ onClick (Decrement counter) ] [ Html.text "-" ]
@@ -287,14 +264,13 @@ renderCounter counter amount =
 
 
 type alias Partials =
-    { carol : Html Intent
-    , danika : Html Intent
-    , dcft : Html Intent
-    , mainSearch : Html Intent
+    { carol : Html Msg
+    , danika : Html Msg
+    , mainSearch : Html Msg
     }
 
 
-view : Partials -> Model -> Html Intent
+view : Partials -> Model -> Html Msg
 view partials model =
     Html.div []
         [ Html.div []
@@ -306,10 +282,6 @@ view partials model =
         , renderCounter Bob model.bob
         , partials.carol
         , partials.danika
-        , Html.hr [] []
-        , Html.div []
-            [ partials.dcft
-            ]
         ]
 
 
