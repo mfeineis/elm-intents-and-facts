@@ -6,8 +6,9 @@ import Html exposing (Html)
 import Html.Events as Events exposing (onClick)
 import Http
 import Json.Decode as Decode exposing (Value)
+import Task
 import Vigors
-import Vigors.Autocomplete
+import Vigors.Autocomplete exposing (Msg(..))
 import Vigors.Counter
 
 
@@ -57,6 +58,7 @@ type Fact
 
 type Consequence
     = FetchJonSnow
+    | SupplyStaticSuggestions
 
 
 carol =
@@ -217,6 +219,9 @@ interpret intent model =
         AskWhoIsKingInTheNorth ->
             ( [], [ FetchJonSnow ] )
 
+        AutocompleteMsg (FetchSuggestions text) ->
+            ( [], [ SupplyStaticSuggestions ] )
+
         AutocompleteMsg _ ->
             ( [], [] )
 
@@ -244,6 +249,10 @@ produce fx model =
     case fx of
         FetchJonSnow ->
             Character.whoIsTheKing (StateFact << KingInTheNorthReceived)
+
+        SupplyStaticSuggestions ->
+            AutocompleteMsg (SuggestionsFetched [ "Aang", "Katara", "Sooka" ])
+                |> asCmd
 
 
 renderCounter : CounterId -> Int -> Html Intent
@@ -275,3 +284,12 @@ view partials model =
         , partials.carol
         , partials.danika
         ]
+
+
+
+-- Helpers
+
+
+asCmd : msg -> Cmd msg
+asCmd msg =
+    Task.perform identity (Task.succeed msg)
