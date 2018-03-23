@@ -44,7 +44,6 @@ type Intent
     | CounterMsg CounterId Vigors.Counter.Msg
     | Decrement CounterId
     | Increment CounterId
-    | Noop
     | Reset
     | StateFact Fact
 
@@ -233,9 +232,6 @@ interpret intent model =
 
         Increment counter ->
             ( [ CounterAdjusted counter 1 ], [] )
-
-        Noop ->
-            ( [], [] )
 
         Reset ->
             ( [ HasBeenReset ], [] )
