@@ -54,7 +54,15 @@ type Intent
 
 
 type Fact
-    = NoFact
+    = AllDoneTodosRemoved
+    | AllTodosRemoved
+    | NewTodoEdited String
+    | NewTodoReset
+    | TodoAdded Todo
+    | TodoEdited Todo String
+    | TodoMarkedAsDone Todo
+    | TodoRemoved Todo
+    | TodoReopened Todo
 
 
 type Todo
@@ -89,18 +97,60 @@ update msg (Model model) =
                 |> withoutCmd
 
         Intent intent ->
-            updateFromIntent intent model
+            interpret intent model
+
+
+interpret : Intent -> State -> ( Model, Cmd Msg )
+interpret msg ({ newTodo, todos } as model) =
+    case msg of
+        AddTodo todo ->
+            model |> applyFacts [ NewTodoReset, TodoAdded todo ]
+
+        EditTodo todo text ->
+            if todo == newTodo then
+                model |> applyFacts [ NewTodoEdited text ]
+            else
+                model |> applyFacts [ TodoEdited todo text ]
+
+        MarkDone todo ->
+            model |> applyFacts [ TodoMarkedAsDone todo ]
+
+        MarkOpen todo ->
+            model |> applyFacts [ TodoReopened todo ]
+
+        NewTodoKeyDown 13 ->
+            interpret (AddTodo newTodo) model
+
+        NewTodoKeyDown _ ->
+            model |> withoutCmd
+
+        RemoveAllTodos ->
+            model |> applyFacts [ NewTodoReset, AllTodosRemoved ]
+
+        RemoveDoneTodos ->
+            model |> applyFacts [ AllDoneTodosRemoved ]
+
+        RemoveTodo todo ->
+            model |> applyFacts [ TodoRemoved todo ]
+
 
 
 updateFromFact : Fact -> State -> State
-updateFromFact msg model =
-    model
-
-
-updateFromIntent : Intent -> State -> ( Model, Cmd Msg )
-updateFromIntent msg ({ newTodo, todos } as model) =
+updateFromFact msg ({ newTodo, todos } as model) =
     case msg of
-        AddTodo todo ->
+        AllDoneTodosRemoved ->
+            { model | todos = List.filter (not << isDone) todos }
+
+        AllTodosRemoved ->
+            { model | todos = [] }
+
+        NewTodoEdited text ->
+            { model | newTodo = Fresh text }
+
+        NewTodoReset ->
+            { model | newTodo = Fresh "" }
+
+        TodoAdded todo ->
             let
                 text =
                     case todo of
@@ -113,34 +163,27 @@ updateFromIntent msg ({ newTodo, todos } as model) =
                         Open it ->
                             it
             in
-            withoutCmd <|
-                { model
-                    | newTodo = Fresh ""
-                    , todos = Open text :: todos
-                }
+            { model | todos = Open text :: todos }
 
-        EditTodo todo text ->
-            if todo == newTodo then
-                { model | newTodo = Fresh text } |> withoutCmd
-            else
-                let
-                    updateOnMatch it =
-                        if it == todo then
-                            case todo of
-                                Done _ ->
-                                    it
+        TodoEdited todo text ->
+            let
+                updateOnMatch it =
+                    if it == todo then
+                        case todo of
+                            Done _ ->
+                                it
 
-                                Fresh _ ->
-                                    it
+                            Fresh _ ->
+                                it
 
-                                Open _ ->
-                                    Open text
-                        else
-                            it
-                in
-                { model | todos = List.map updateOnMatch todos } |> withoutCmd
+                            Open _ ->
+                                Open text
+                    else
+                        it
+            in
+            { model | todos = List.map updateOnMatch todos }
 
-        MarkDone todo ->
+        TodoMarkedAsDone todo ->
             let
                 updateOnMatch it =
                     if it == todo then
@@ -156,9 +199,12 @@ updateFromIntent msg ({ newTodo, todos } as model) =
                     else
                         it
             in
-            { model | todos = List.map updateOnMatch todos } |> withoutCmd
+            { model | todos = List.map updateOnMatch todos }
 
-        MarkOpen todo ->
+        TodoRemoved todo ->
+           { model | todos = List.filter (\it -> todo /= it) todos }
+
+        TodoReopened todo ->
             let
                 updateOnMatch it =
                     if it == todo then
@@ -174,22 +220,8 @@ updateFromIntent msg ({ newTodo, todos } as model) =
                     else
                         it
             in
-            { model | todos = List.map updateOnMatch todos } |> withoutCmd
+            { model | todos = List.map updateOnMatch todos }
 
-        NewTodoKeyDown 13 ->
-            updateFromIntent (AddTodo newTodo) model
-
-        NewTodoKeyDown _ ->
-            model |> withoutCmd
-
-        RemoveAllTodos ->
-            { model | newTodo = Fresh "", todos = [] } |> withoutCmd
-
-        RemoveDoneTodos ->
-           { model | todos = List.filter (not << isDone) todos } |> withoutCmd
-
-        RemoveTodo todo ->
-           { model | todos = List.filter (\it -> todo /= it) todos } |> withoutCmd
 
 
 isDone : Todo -> Bool
@@ -321,6 +353,6 @@ withoutCmd state =
     ( Model state, Cmd.none )
 
 
-withCmds : List (Cmd msg) -> State -> ( Model, Cmd msg )
-withCmds cmds state =
-    ( Model state, Cmd.batch cmds )
+applyFacts : List Fact -> State -> ( Model, Cmd Msg )
+applyFacts facts state =
+    ( Model state, Cmd.batch (List.map (asCmd << Fact) facts))
