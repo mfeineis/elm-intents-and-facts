@@ -93,50 +93,51 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg (Model model) =
     case msg of
         Fact fact ->
-            updateFromFact fact model
+            replay fact model
                 |> withoutCmd
 
         Intent intent ->
             interpret intent model
+                |> \(fs, cmds) -> applyFacts fs model
 
 
-interpret : Intent -> State -> ( Model, Cmd Msg )
+interpret : Intent -> State -> ( List Fact, Cmd Msg )
 interpret msg ({ newTodo, todos } as model) =
     case msg of
         AddTodo todo ->
-            model |> applyFacts [ NewTodoReset, TodoAdded todo ]
+            ( [ NewTodoReset, TodoAdded todo ], Cmd.none )
 
         EditTodo todo text ->
             if todo == newTodo then
-                model |> applyFacts [ NewTodoEdited text ]
+                ( [ NewTodoEdited text ], Cmd.none )
             else
-                model |> applyFacts [ TodoEdited todo text ]
+                ( [ TodoEdited todo text ], Cmd.none )
 
         MarkDone todo ->
-            model |> applyFacts [ TodoMarkedAsDone todo ]
+            ( [ TodoMarkedAsDone todo ], Cmd.none )
 
         MarkOpen todo ->
-            model |> applyFacts [ TodoReopened todo ]
+            ( [ TodoReopened todo ], Cmd.none )
 
         NewTodoKeyDown 13 ->
             interpret (AddTodo newTodo) model
 
         NewTodoKeyDown _ ->
-            model |> withoutCmd
+            ( [], Cmd.none )
 
         RemoveAllTodos ->
-            model |> applyFacts [ NewTodoReset, AllTodosRemoved ]
+            ( [ NewTodoReset, AllTodosRemoved ], Cmd.none )
 
         RemoveDoneTodos ->
-            model |> applyFacts [ AllDoneTodosRemoved ]
+            ( [ AllDoneTodosRemoved ], Cmd.none )
 
         RemoveTodo todo ->
-            model |> applyFacts [ TodoRemoved todo ]
+            ( [ TodoRemoved todo ], Cmd.none )
 
 
 
-updateFromFact : Fact -> State -> State
-updateFromFact msg ({ newTodo, todos } as model) =
+replay : Fact -> State -> State
+replay msg ({ newTodo, todos } as model) =
     case msg of
         AllDoneTodosRemoved ->
             { model | todos = List.filter (not << isDone) todos }
