@@ -1,4 +1,4 @@
-module Vigors.Todo exposing (init, main, vigor)
+module Vigors.Todo exposing (Model, Msg, init, main, vigor)
 
 import Html exposing (Attribute, Html)
 import Html.Attributes as Attr
@@ -15,7 +15,7 @@ main =
         { init = init (Encode.object [])
         , subscriptions = subscriptions >> Sub.map Intent
         , update = update
-        , view = view >> Html.map Intent
+        , view = (\(Model state) -> view state) >> Html.map Intent
         }
 
 
@@ -24,7 +24,7 @@ vigor =
     Vigors.summon
         { subscriptions = subscriptions >> Sub.map Intent
         , update = update
-        , view = view >> Html.map Intent
+        , view = (\(Model state) -> view state) >> Html.map Intent
         }
 
 
@@ -63,7 +63,11 @@ type Todo
     | Open String
 
 
-type alias Model =
+type Model
+    = Model State
+
+
+type alias State =
     { newTodo : Todo
     , todos : List Todo
     }
@@ -78,7 +82,7 @@ init _ =
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg (Model model) =
     case msg of
         Fact fact ->
             updateFromFact fact model
@@ -88,12 +92,12 @@ update msg model =
             updateFromIntent intent model
 
 
-updateFromFact : Fact -> Model -> Model
+updateFromFact : Fact -> State -> State
 updateFromFact msg model =
     model
 
 
-updateFromIntent : Intent -> Model -> ( Model, Cmd Msg )
+updateFromIntent : Intent -> State -> ( Model, Cmd Msg )
 updateFromIntent msg ({ newTodo, todos } as model) =
     case msg of
         AddTodo todo ->
@@ -201,7 +205,7 @@ isDone todo =
 -- View
 
 
-view : Model -> Html Intent
+view : State -> Html Intent
 view { newTodo, todos } =
     let
        hasDoneTodos =
@@ -312,11 +316,11 @@ asCmd msg =
     Task.perform identity (Task.succeed msg)
 
 
-withoutCmd : model -> ( model, Cmd msg )
-withoutCmd model =
-    ( model, Cmd.none )
+withoutCmd : State -> ( Model, Cmd msg )
+withoutCmd state =
+    ( Model state, Cmd.none )
 
 
-withCmds : List (Cmd msg) -> model -> ( model, Cmd msg )
-withCmds cmds model =
-    ( model, Cmd.batch cmds )
+withCmds : List (Cmd msg) -> State -> ( Model, Cmd msg )
+withCmds cmds state =
+    ( Model state, Cmd.batch cmds )
