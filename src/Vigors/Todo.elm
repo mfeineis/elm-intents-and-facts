@@ -102,8 +102,8 @@ update msg (Model model) =
 
 
 interpret : Intent -> State -> ( List Fact, Cmd Msg )
-interpret msg ({ newTodo, todos } as model) =
-    case msg of
+interpret intent ({ newTodo, todos } as model) =
+    case intent of
         AddTodo todo ->
             ( [ NewTodoReset, TodoAdded todo ], Cmd.none )
 
@@ -137,8 +137,8 @@ interpret msg ({ newTodo, todos } as model) =
 
 
 replay : Fact -> State -> State
-replay msg ({ newTodo, todos } as model) =
-    case msg of
+replay fact ({ newTodo, todos } as model) =
+    case fact of
         AllDoneTodosRemoved ->
             { model | todos = List.filter (not << isDone) todos }
 
@@ -242,7 +242,7 @@ view : State -> Html Intent
 view { newTodo, todos } =
     let
        hasDoneTodos =
-            todos |> List.filter isDone |> not << List.isEmpty
+          todos |> List.filter isDone |> not << List.isEmpty
     in
     Html.div []
         [ baseStyle
