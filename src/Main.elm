@@ -1,4 +1,4 @@
-module Main exposing (init, main, vigor)
+port module Main exposing (init, main, vigor)
 
 import Cqrs
 import Data.Character as Character exposing (Character)
@@ -13,6 +13,12 @@ import Vigors
 import Vigors.Autocomplete exposing (Msg(..))
 import Vigors.Counter
 import Vigors.Todo
+
+
+port fromElm : Value -> Cmd msg
+
+
+port toElm : (Value -> msg) -> Sub msg
 
 
 -- [ ] Datepicker
