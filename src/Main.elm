@@ -197,6 +197,10 @@ subscriptions model =
 
 init : Value -> ( Model, List Fact, List Consequence )
 init _ =
+    let
+        ( todo, _ ) =
+            Vigors.Todo.init (Encode.object [])
+    in
     ( { alice = 0
       , bob = 0
       , carol = Vigors.Counter.init "Carol" 0
@@ -207,7 +211,7 @@ init _ =
           Vigors.Autocomplete.init
               { placeholder = "Search for something..."
               }
-      , todo = Vigors.Todo.init (Encode.object [])
+      , todo = todo
       }
     , [ HasBeenReset ]
     , [ FetchJonSnow ]
@@ -235,6 +239,10 @@ apply fact model =
                 |> incrementOverall
 
         HasBeenReset ->
+            let
+                ( todo, _ ) =
+                    Vigors.Todo.init (Encode.object [])
+            in
             { alice = 1
             , bob = 1
             , carol = Vigors.Counter.init "Carol" 1
@@ -245,7 +253,7 @@ apply fact model =
                 Vigors.Autocomplete.init
                     { placeholder = "Search for something..."
                     }
-            , todo = Vigors.Todo.init (Encode.object [])
+            , todo = todo
             }
 
         KingInTheNorthReceived (Ok { name, titles }) ->
