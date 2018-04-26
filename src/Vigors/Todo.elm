@@ -4,15 +4,14 @@ import Html exposing (Attribute, Html)
 import Html.Attributes as Attr
 import Html.Events as Events exposing (onClick, onCheck, onInput)
 import Json.Decode as Decode exposing (Value)
-import Json.Encode as Encode
 import Task
 import Vigors exposing (Recipe, Vigor)
 
 
-main : Program Never Model Msg
+main : Program Value Model Msg
 main =
-    Html.program
-        { init = init (Encode.object [])
+    Html.programWithFlags
+        { init = \flags -> (init flags, Cmd.none )
         , subscriptions = subscriptions >> Sub.map Intent
         , update = update
         , view = (\(Model state) -> view state) >> Html.map Intent
@@ -81,9 +80,10 @@ type alias State =
     }
 
 
-init : Value -> ( Model, Cmd Msg )
+-- FIXME: How do we provide initial `Cmd Msg`s to the parent?
+init : Value -> Model
 init _ =
-    withoutCmd <|
+    Model
         { newTodo = Fresh ""
         , todos = []
         }

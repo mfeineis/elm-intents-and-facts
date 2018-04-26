@@ -12,6 +12,7 @@ import Task
 import Vigors
 import Vigors.Autocomplete exposing (Msg(..))
 import Vigors.Counter
+import Vigors.Todo
 
 
 -- [ ] Datepicker
@@ -20,6 +21,7 @@ import Vigors.Counter
 -- [ ] Filterable Dropdown
 -- [ ] Autocomplete
 -- [ ] Paging
+-- [ ] Todo
 -- [ ]
 
 
@@ -31,6 +33,7 @@ type alias Model =
     , clicked : Int
     , danika : Vigors.Counter.Model
     , search : Vigors.Autocomplete.Model
+    , todo : Vigors.Todo.Model
     }
 
 
@@ -50,6 +53,7 @@ type Intent
     | MainDcftMsg MainDcft.Msg
     | Reset
     | StateFact Fact
+    | TodoMsg Vigors.Todo.Msg
 
 
 type Fact
@@ -95,6 +99,7 @@ danika =
         , store = \model state -> { model | danika = state }
         }
 
+
 dcft =
     MainDcft.vigor
         { incoming =
@@ -127,12 +132,29 @@ mainSearch =
         }
 
 
+todo =
+    Vigors.Todo.vigor
+        { incoming =
+            \msg ->
+                case msg of
+                    TodoMsg it ->
+                        Just it
+
+                    _ ->
+                        Nothing
+        , outgoing = TodoMsg
+        , read = .todo
+        , store = \model state -> { model | todo = state }
+        }
+
+
 compositeView model =
     view
         { carol = carol.view model
         , danika = danika.view model
         , dcft = dcft.view model
         , mainSearch = mainSearch.view model
+        , todo = todo.view model
         }
         model
 
@@ -164,6 +186,7 @@ main =
             , danika
             , dcft
             , mainSearch
+            , todo
             ]
 
 
@@ -181,9 +204,10 @@ init _ =
       , danika = Vigors.Counter.init "Danika" 0
       , dcft = MainDcft.init (Encode.object [])
       , search =
-            Vigors.Autocomplete.init
-                { placeholder = "Search for something..."
-                }
+          Vigors.Autocomplete.init
+              { placeholder = "Search for something..."
+              }
+      , todo = Vigors.Todo.init (Encode.object [])
       }
     , [ HasBeenReset ]
     , [ FetchJonSnow ]
@@ -221,6 +245,7 @@ apply fact model =
                 Vigors.Autocomplete.init
                     { placeholder = "Search for something..."
                     }
+            , todo = Vigors.Todo.init (Encode.object [])
             }
 
         KingInTheNorthReceived (Ok { name, titles }) ->
@@ -265,6 +290,9 @@ interpret intent model =
         StateFact fact ->
             ( [ fact ], [] )
 
+        TodoMsg _ ->
+            ( [], [] )
+
 
 produce : Consequence -> Model -> Cmd Intent
 produce fx model =
@@ -291,6 +319,7 @@ type alias Partials =
     , danika : Html Intent
     , dcft : Html Intent
     , mainSearch : Html Intent
+    , todo : Html Intent
     }
 
 
@@ -310,6 +339,8 @@ view partials model =
         , Html.div []
             [ partials.dcft
             ]
+        , Html.hr [] []
+        , partials.todo
         ]
 
 
